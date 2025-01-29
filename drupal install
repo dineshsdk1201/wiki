@@ -1,0 +1,2 @@
+ Failed to download drupal/recommended-project from dist: curl error 60 while downloading https://codeload.github.com/drupal/recommended-project/legacy.zip/0ce59c89d63b984a3f7faf1644324c3017a65e95: SSL certificate problem: unable to get local issuer certificate
+    Now trying to download from source
