@@ -1,0 +1,10 @@
+<div class="dynamic-block">
+  <h2 class="new-title">{{ title }}</h2>
+  <p class="desc">{{ description }}</p>
+{% if image_url %}
+    <img src="{{ image_url }}" alt="{{ title }}" />
+  {% endif %}
+</div>
+
+
+ 
