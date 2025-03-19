@@ -41,16 +41,16 @@ class DynamicContentBlock extends BlockBase {
         ];
  
         $form['block_image'] = [
-            '#type' => 'managed_file',
-            '#title' => $this->t('Block Image'),
-            '#upload_location' => 'public://block_images/',
-            '#default_value' => $config['block_image'] ?? '',
-            '#description' => $this->t('Upload an image for this block.'),
-            '#upload_validators' => [
-                'file_validate_extensions' => ['png jpg jpeg webp jfif'],
-                'file_validate_size' => [2097152], // 2MB limit
-            ],
-        ];
+          '#type' => 'managed_file',
+          '#title' => $this->t('Block Image'),
+          '#upload_location' => 'public://block_images/',
+          '#default_value' => isset($config['block_image']) ? [$config['block_image']] : [], // FIXED: Requires an array of FIDs
+          '#description' => $this->t('Upload an image for this block.'),
+          '#upload_validators' => [
+              'file_validate_extensions' => ['png jpg jpeg webp jfif'],
+              'file_validate_size' => [2097152], // 2MB limit
+          ],
+      ];
  
         return $form;
     }
@@ -70,6 +70,8 @@ class DynamicContentBlock extends BlockBase {
             if ($file) {
                 $file->setPermanent();
                 $file->save();
+                //Ensure the file is published and available
+                \Drupal::service('file.usage')->add($file, 'myblock', 'myblock', $file->id());
                 $this->setConfigurationValue('block_image', $image_fid);
             }
         }
@@ -80,30 +82,37 @@ class DynamicContentBlock extends BlockBase {
      * Build the block's output.
      */
     public function build() {
-        $config = $this->getConfiguration();
- 
-        $image_url = '';
-        if (!empty($config['block_image'])) {
-            $file = File::load($config['block_image']);
-            if ($file) {
-              $image_url = \Drupal::service('file_url_generator')->generateAbsoluteString($file->getFileUri());
-              // $image_url = "C:/xampp/htdocs/Recipes/drupal-10.0.0/sites/default/files/block_images/download_2.jfif";
-
-              \Drupal::messenger()->addMessage($image_url);
-              \Drupal::messenger()->addMessage($file->getFileUri());
-            }
-        }
- 
-        return [
-            '#theme' => 'dynamic_content_block',
-            '#title' => $config['block_title'] ?? 'Default Title',
-            '#description' => $config['block_description'] ?? 'Default Description',
-            '#image_url' => $image_url,
-            '#attached' => [
-                'library' => [
-                    'myblock/new_block_styles',
-                ],
-            ],
-        ];
-    }
+      $config = $this->getConfiguration();
+   
+      $image_url = '';
+      if (!empty($config['block_image'])) {
+          $file = File::load($config['block_image']);
+          if ($file) {
+              $image_uri = $file->getFileUri();
+              
+              // Check if file exists in the filesystem
+              if (\Drupal::service('file_system')->realpath($image_uri)) {
+                  $image_url = \Drupal::service('file_url_generator')->generateAbsoluteString($image_uri);
+              } else {
+                  \Drupal::messenger()->addMessage($this->t('The image file is missing or not accessible.'), 'error');
+              }
+   
+              // Debugging messages for clarity
+              \Drupal::messenger()->addMessage('Image URL (for web): ' . $image_url);
+              \Drupal::messenger()->addMessage('Image File URI (system path): ' . $image_uri);
+          }
+      }
+   
+      return [
+          '#theme' => 'dynamic_content_block',
+          '#title' => $config['block_title'] ?? 'Default Title',
+          '#description' => $config['block_description'] ?? 'Default Description',
+          '#image_url' => $image_url,
+          '#attached' => [
+              'library' => [
+                  'myblock/new_block_styles',
+              ],
+          ],
+      ];
+  }
 }
